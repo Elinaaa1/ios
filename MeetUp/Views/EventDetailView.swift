@@ -6,6 +6,7 @@ struct EventDetailView: View {
     let meetingID: UUID
     @State private var showingEdit = false
     @State private var newTask = ""
+    @State private var showingExpenseForm = false
 
     private var meeting: Meeting? { store.meetings.first { $0.id == meetingID } }
 
@@ -41,6 +42,33 @@ struct EventDetailView: View {
                                 .disabled(newTask.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
+                    Section("Shared expenses") {
+                        ForEach(meeting.expenses) { expense in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(expense.title)
+                                    Text("Paid by: \(expense.paidBy)")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(expense.amount, format: .currency(code: "PLN"))
+                            }
+                        }
+                        .onDelete { offsets in
+                            var updated = meeting
+                            updated.expenses.remove(atOffsets: offsets)
+                            store.update(updated)
+                        }
+                        LabeledContent("Total", value: meeting.expenses.reduce(0) { $0 + $1.amount }
+                            .formatted(.currency(code: "PLN")))
+                        let peopleCount = meeting.participantNames.count + 1
+                        LabeledContent("Per person (including you)", value:
+                            (meeting.expenses.reduce(0) { $0 + $1.amount } / Double(peopleCount))
+                            .formatted(.currency(code: "PLN")))
+                        Button("Add expense", systemImage: "plus.circle") {
+                            showingExpenseForm = true
+                        }
+                    }
                     Section {
                         Button("Delete event", role: .destructive) {
                             store.delete(meetingID)
@@ -51,6 +79,9 @@ struct EventDetailView: View {
                 .navigationTitle(meeting.title)
                 .toolbar { Button("Edit") { showingEdit = true } }
                 .sheet(isPresented: $showingEdit) { EventEditorView(existing: meeting) }
+                .sheet(isPresented: $showingExpenseForm) {
+                    ExpenseEditorView(meetingID: meetingID)
+                }
             } else {
                 ContentUnavailableView("Event not found", systemImage: "calendar.badge.exclamationmark")
             }

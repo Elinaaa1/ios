@@ -20,6 +20,11 @@ struct ProfileView: View {
                 Section("Overview") {
                     LabeledContent("Events", value: "\(store.meetings.count)")
                     LabeledContent("Friends", value: "\(store.friends.count)")
+                    LabeledContent("Upcoming events", value: "\(store.upcomingMeetings.count)")
+                    LabeledContent("Completed tasks", value: "\(store.meetings.flatMap(\.tasks).filter(\.isDone).count)")
+                    LabeledContent("Recorded expenses", value:
+                        store.meetings.flatMap(\.expenses).reduce(0) { $0 + $1.amount }
+                            .formatted(.currency(code: "PLN")))
                 }
                 Section("About") {
                     Text("MeetUp — plan meetings with friends in one place.")

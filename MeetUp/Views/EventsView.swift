@@ -3,14 +3,34 @@ import SwiftUI
 struct EventsView: View {
     @EnvironmentObject private var store: EventStore
     @State private var showingCreate = false
+    @State private var searchText = ""
+    @State private var selectedCategory: String = "All"
+
+    private var filteredMeetings: [Meeting] {
+        store.sortedMeetings.filter { meeting in
+            let matchesSearch = searchText.isEmpty ||
+                meeting.title.localizedCaseInsensitiveContains(searchText) ||
+                meeting.location.localizedCaseInsensitiveContains(searchText)
+            let matchesCategory = selectedCategory == "All" ||
+                meeting.category.rawValue == selectedCategory
+            return matchesSearch && matchesCategory
+        }
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                if store.sortedMeetings.isEmpty {
+                Picker("Category", selection: $selectedCategory) {
+                    Text("All").tag("All")
+                    ForEach(MeetingCategory.allCases) { category in
+                        Text(category.rawValue).tag(category.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                if filteredMeetings.isEmpty {
                     ContentUnavailableView("No events yet", systemImage: "calendar", description: Text("Tap + to add a meeting."))
                 } else {
-                    ForEach(store.sortedMeetings) { meeting in
+                    ForEach(filteredMeetings) { meeting in
                         NavigationLink(value: meeting.id) {
                             EventCard(meeting: meeting)
                         }
@@ -18,12 +38,13 @@ struct EventsView: View {
                         .listRowBackground(Color.clear)
                     }
                     .onDelete { offsets in
-                        let items = store.sortedMeetings
+                        let items = filteredMeetings
                         for index in offsets { store.delete(items[index].id) }
                     }
                 }
             }
             .listStyle(.plain)
+            .searchable(text: $searchText, prompt: "Search events or locations")
             .navigationTitle("Events")
             .toolbar {
                 Button { showingCreate = true } label: { Image(systemName: "plus") }
