@@ -1,29 +1,25 @@
-# MeetUp — SwiftUI starter
+# MeetUp — Stage 3 (wersja z komentarzami)
 
-## Requirements
-- Xcode 15 or newer, iOS 17 or newer.
-- SwiftUI app target.
+Projekt jest uporzadkowany wedlug **Feature-First**. Kod zachowuje funkcjonalnosc poprzedniego etapu, a sekcje oznaczono komentarzami `// MARK:` po polsku.
 
-## Setup
-1. Create a new Xcode project: iOS > App, name `MeetUp`, Interface `SwiftUI`, Language `Swift`.
-2. Remove the generated `ContentView.swift` and `MeetUpApp.swift` from the project (or replace their contents).
-3. Drag the `MeetUp` folder's Swift files into the project in Xcode and choose **Copy items if needed** and **Add to target: MeetUp**. Ensure no duplicate @main App exists.
-4. Build and run in an iOS 17+ simulator.
+## Instalacja w Xcode
+1. Zrob kopie obecnego projektu.
+2. Wypakuj archiwum.
+3. Zamien odpowiednie pliki .swift na zawartosc folderu MeetUp (bez duplikowania ich w target).
+4. Dodaj pliki do target iOS, a nastepnie nacisnij Cmd+B i Cmd+R.
+5. Minimalny iOS: 17.
 
-## Included
-- Four tabs: Home, Events, Friends, Profile.
-- Add, edit, delete events; categories, dates, places, descriptions.
-- Add/remove local friend names and select them for events.
-- Per-event preparation checklist with completion toggles.
-- Local persistence using UserDefaults + Codable.
+## Scenariusz prezentacji
+1. `App/ContentView.swift` — cztery zakladki.
+2. `Features/Events/Views/EventEditorView.swift` — formularz i `saveEvent()`.
+3. `Core/Storage/EventStore.swift` — `add`, `update`, `delete`, `save`.
+4. `Features/Events/Views/EventDetailView.swift` — sekcje Polls i Shared expenses; `totalExpenses(for:)`.
+5. `Features/Voting/PollEditorView.swift` — walidacja `canSave` i `createPoll()`.
+6. `Features/Voting/MeetingPoll.swift` — `countVotes`, `maximumVoteCount`, `winningOptions`, `castVote`.
+7. `Features/Voting/PollDetailView.swift` — pasek procentowy i `submitVote`.
 
-## Not included
-- Accounts, real invitations, multi-user synchronization, voting, shared budgets, push notifications.
-- This is a single-device educational starter, not a production backend.
-
-## Suggested next steps
-- Move storage to SwiftData.
-- Add voting on proposed dates/places.
-- Add expense models and calculations.
-- Introduce backend authentication and synchronized groups.
-- Write unit tests for event and expense logic.
+### Uwaga
+- `UserDefaults` sluzy do lokalnego przechowywania danych; to nie jest Firebase ani synchronizacja.
+- Glosowanie odbywa sie na jednym urzadzeniu po wybraniu nazwy uczestnika.
+- Kwota 'Per person' to rowny podzial wydatkow, nie rozliczenia dlugow.
+- Nazwy typow `Meeting`, `MeetingPoll`, `EventStore` pozostaja bez zmian, aby nie uszkodzic powiazan.
