@@ -3,6 +3,8 @@
 
 import SwiftUI
 
+
+
 struct HomeView: View {
     @EnvironmentObject private var store: EventStore
     @State private var showingCreate = false
