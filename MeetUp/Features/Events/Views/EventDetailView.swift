@@ -97,12 +97,11 @@ struct EventDetailView: View {
                             updated.expenses.remove(atOffsets: offsets)
                             store.update(updated)
                         }
-                        LabeledContent("Total", value: totalExpenses(for: meeting)
-                            .formatted(.currency(code: "PLN")))
+                        LabeledContent("Total", value: ExpenseCalculator.calculateTotal(expenses: meeting.expenses)
+                                       .formatted(.currency(code: "PLN")))
                         let peopleCount = meeting.participantNames.count + 1
-                        LabeledContent("Per person (including you)", value:
-                            (totalExpenses(for: meeting) / Double(peopleCount))
-                            .formatted(.currency(code: "PLN")))
+                        LabeledContent("Per person (including you)", value: ExpenseCalculator.calculatePerPerson(expenses: meeting.expenses, 
+                        participantsCount: meeting.participantNames.count + 1).formatted(.currency(code: "PLN")))
                         Button("Add expense", systemImage: "plus.circle") {
                             showingExpenseForm = true
                         }
