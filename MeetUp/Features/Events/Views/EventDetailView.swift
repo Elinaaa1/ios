@@ -129,13 +129,6 @@ struct EventDetailView: View {
         }
     }
 
-    // MARK: - SUMOWANIE WSZYSTKICH WYDATKOW PRZEZ REDUCE
-    private func totalExpenses(for meeting: Meeting) -> Double {
-        meeting.expenses.reduce(0) { sum, expense in
-            sum + expense.amount
-        }
-    }
-
     // MARK: - DODAWANIE ZADANIA DO LISTY
     private func addTask() {
         guard var updated = meeting else { return }
