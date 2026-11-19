@@ -1,9 +1,7 @@
-// MARK: - PRZECHOWYWANIE DANYCH
-// Dodawanie, edycja i usuwanie wydarzen; zapis lokalny w UserDefaults.
-
 import Foundation
 import Combine
 
+// MARK: - CENTRALNE DANE I ZAPIS JSON W USERDEFAULTS
 @MainActor
 final class EventStore: ObservableObject {
     @Published private(set) var meetings: [Meeting] = [] {
@@ -16,7 +14,7 @@ final class EventStore: ObservableObject {
     private let meetingsKey = "meetup.meetings.v1"
     private let friendsKey = "meetup.friends.v1"
 
-    // MARK: - ODCZYT DANYCH PRZY URUCHOMIENIU
+    // MARK: - ODCZYT STARYCH DANYCH
     init() {
         if let data = UserDefaults.standard.data(forKey: meetingsKey),
            let decoded = try? JSONDecoder().decode([Meeting].self, from: data) {
@@ -26,41 +24,56 @@ final class EventStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             friends = decoded
         }
+        // Przy ponownym uruchomieniu odswiezamy zapisane przypomnienia.
+        let existingMeetings = meetings
+        Task { @MainActor in
+            for meeting in existingMeetings where meeting.reminder != .none {
+                await ReminderService.shared.refresh(for: meeting)
+            }
+        }
     }
 
-    // MARK: - LISTY WYDARZEN
     var sortedMeetings: [Meeting] { meetings.sorted { $0.date < $1.date } }
-    var upcomingMeetings: [Meeting] { sortedMeetings.filter { $0.date >= Date() } }
+    var upcomingMeetings: [Meeting] {
+        sortedMeetings.filter { $0.date >= Date() && $0.status != .cancelled && $0.status != .completed }
+    }
 
-    // MARK: - DODAWANIE WYDARZENIA
-    func add(_ meeting: Meeting) { meetings.append(meeting) }
+    // MARK: - TWORZENIE I ZMIANA SPOTKAN
+    func add(_ meeting: Meeting) {
+        meetings.append(meeting)
+        Task { await ReminderService.shared.refresh(for: meeting) }
+    }
 
-    // MARK: - AKTUALIZACJA WYDARZENIA (TAKZE ANKIET I WYDATKOW)
     func update(_ meeting: Meeting) {
         guard let index = meetings.firstIndex(where: { $0.id == meeting.id }) else { return }
         meetings[index] = meeting
+        Task { await ReminderService.shared.refresh(for: meeting) }
     }
 
-    // MARK: - USUWANIE WYDARZENIA
-    func delete(_ id: UUID) { meetings.removeAll { $0.id == id } }
+    // MARK: - USUNIECIE SPOTKANIA I PRZYPOMNIENIA
+    func delete(_ id: UUID) {
+        guard let meeting = meetings.first(where: { $0.id == id }) else { return }
+        ReminderService.shared.cancel(for: meeting)
+        meetings.removeAll { $0.id == id }
+    }
 
-    // MARK: - ZARZADZANIE ZNAJOMYMI
+    // MARK: - ZNAJOMI (BEZ ZMIAN)
     func addFriend(_ name: String) {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, !friends.contains(where: { $0.localizedCaseInsensitiveCompare(clean) == .orderedSame }) else { return }
+        guard !clean.isEmpty,
+              !friends.contains(where: { $0.localizedCaseInsensitiveCompare(clean) == .orderedSame }) else { return }
         friends.append(clean)
         friends.sort()
     }
 
     func removeFriend(_ name: String) { friends.removeAll { $0 == name } }
 
-    // MARK: - ZAPIS WYDARZEN DO USERDEFAULTS (JSON)
+    // MARK: - ZAPIS LOKALNY
     private func save() {
         guard let data = try? JSONEncoder().encode(meetings) else { return }
         UserDefaults.standard.set(data, forKey: meetingsKey)
     }
 
-    // MARK: - ZAPIS ZNAJOMYCH DO USERDEFAULTS
     private func saveFriends() {
         guard let data = try? JSONEncoder().encode(friends) else { return }
         UserDefaults.standard.set(data, forKey: friendsKey)
