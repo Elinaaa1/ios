@@ -22,6 +22,11 @@ struct EventDetailView: View {
                     Section("Details") {
                         Label(meeting.category.rawValue, systemImage: meeting.category.symbol)
                         Label(meeting.date.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
+                        // MARK: - NOWY STATUS I PRZYPOMNIENIE
+                        Label(meeting.status.rawValue, systemImage: meeting.status.symbol)
+                        if meeting.reminder != .none {
+                            Label(meeting.reminder.title, systemImage: "bell")
+                        }
                         if !meeting.location.isEmpty { Label(meeting.location, systemImage: "mappin") }
                         if !meeting.details.isEmpty { Text(meeting.details) }
                     }

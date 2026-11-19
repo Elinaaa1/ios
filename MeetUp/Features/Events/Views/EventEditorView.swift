@@ -1,8 +1,6 @@
-// MARK: - FORMULARZ WYDARZENIA
-// Tworzenie lub edytowanie spotkania.
-
 import SwiftUI
 
+// MARK: - FORMULARZ DODAWANIA I EDYCJI WYDARZENIA
 struct EventEditorView: View {
     @EnvironmentObject private var store: EventStore
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +12,8 @@ struct EventEditorView: View {
     @State private var details = ""
     @State private var category: MeetingCategory = .social
     @State private var selectedFriends: Set<String> = []
+    @State private var status: EventStatus = .planned
+    @State private var reminder: ReminderOption = .none
 
     var body: some View {
         NavigationStack {
@@ -30,6 +30,19 @@ struct EventEditorView: View {
                     TextField("Description", text: $details, axis: .vertical)
                         .lineLimit(2...5)
                 }
+
+                // MARK: - STATUS SPOTKANIA
+                Section("Event status") {
+                    Picker("Status", selection: $status) {
+                        ForEach(EventStatus.allCases) { eventStatus in
+                            Text(eventStatus.rawValue).tag(eventStatus)
+                        }
+                    }
+                }
+
+                // MARK: - PRZYPOMNIENIA
+                ReminderSettingsView(selectedReminder: $reminder)
+
                 Section("Participants (local list)") {
                     if store.friends.isEmpty {
                         Text("Add friends in the Friends tab first.")
@@ -44,7 +57,8 @@ struct EventEditorView: View {
                                 Text(friend).foregroundStyle(.primary)
                                 Spacer()
                                 if selectedFriends.contains(friend) {
-                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.indigo)
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(AppTheme.pink)
                                 }
                             }
                         }
@@ -53,6 +67,7 @@ struct EventEditorView: View {
             }
             .navigationTitle(existing == nil ? "New Event" : "Edit Event")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(AppTheme.pink)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -70,19 +85,24 @@ struct EventEditorView: View {
                 details = existing.details
                 category = existing.category
                 selectedFriends = Set(existing.participantNames)
+                status = existing.status
+                reminder = existing.reminder
             }
         }
     }
 
-    // MARK: - ZAPIS NOWEGO LUB EDYTOWANEGO WYDARZENIA
+    // MARK: - ZAPIS SPOTKANIA
     private func saveEvent() {
-        var meeting = existing ?? Meeting(title: title, date: date, location: location, details: details, category: category)
+        var meeting = existing ?? Meeting(title: title, date: date, location: location,
+                                          details: details, category: category)
         meeting.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         meeting.date = date
         meeting.location = location
         meeting.details = details
         meeting.category = category
         meeting.participantNames = selectedFriends.sorted()
+        meeting.status = status
+        meeting.reminder = reminder
         if existing == nil { store.add(meeting) }
         else { store.update(meeting) }
         dismiss()

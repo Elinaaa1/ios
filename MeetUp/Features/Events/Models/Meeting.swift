@@ -1,8 +1,7 @@
-// MARK: - MODEL WYDARZENIA
-// Dane spotkania oraz powiazania z zadaniami, kosztami i ankietami.
-
 import Foundation
 
+// MARK: - MODEL WYDARZENIA
+// Nowe pola status/reminder maja domyslne wartosci podczas odczytu starych zapisow.
 struct Meeting: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var title: String
@@ -14,15 +13,18 @@ struct Meeting: Identifiable, Codable, Equatable {
     var tasks: [MeetingTask] = []
     var expenses: [MeetingExpense] = []
     var polls: [MeetingPoll] = []
+    var status: EventStatus = .planned
+    var reminder: ReminderOption = .none
 
     enum CodingKeys: String, CodingKey {
-        case id, title, date, location, details, category, participantNames, tasks, expenses, polls
+        case id, title, date, location, details, category, participantNames, tasks, expenses, polls, status, reminder
     }
 
     init(id: UUID = UUID(), title: String, date: Date, location: String,
          details: String, category: MeetingCategory, participantNames: [String] = [],
          tasks: [MeetingTask] = [], expenses: [MeetingExpense] = [],
-         polls: [MeetingPoll] = []) {
+         polls: [MeetingPoll] = [], status: EventStatus = .planned,
+         reminder: ReminderOption = .none) {
         self.id = id
         self.title = title
         self.date = date
@@ -33,8 +35,11 @@ struct Meeting: Identifiable, Codable, Equatable {
         self.tasks = tasks
         self.expenses = expenses
         self.polls = polls
+        self.status = status
+        self.reminder = reminder
     }
 
+    // MARK: - ZGODNOSC ZE STARYMI DANYMI USERDEFAULTS
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
@@ -47,8 +52,9 @@ struct Meeting: Identifiable, Codable, Equatable {
         tasks = try c.decodeIfPresent([MeetingTask].self, forKey: .tasks) ?? []
         expenses = try c.decodeIfPresent([MeetingExpense].self, forKey: .expenses) ?? []
         polls = try c.decodeIfPresent([MeetingPoll].self, forKey: .polls) ?? []
+        status = try c.decodeIfPresent(EventStatus.self, forKey: .status) ?? .planned
+        reminder = try c.decodeIfPresent(ReminderOption.self, forKey: .reminder) ?? .none
     }
-
 }
 
 enum MeetingCategory: String, CaseIterable, Codable, Identifiable {
@@ -70,6 +76,3 @@ enum MeetingCategory: String, CaseIterable, Codable, Identifiable {
         }
     }
 }
-
-
-
