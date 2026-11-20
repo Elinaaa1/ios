@@ -1,26 +1,11 @@
 import Foundation
 
-// MARK: - LOGIKA OBLICZANIA WYDATKOW
-
+// MARK: - LOGIKA FINANSOWA, NIEZALEZNA OD SWIFTUI
 struct ExpenseCalculator {
-
-    // Obliczanie lacznej sumy wydatkow
-    static func calculateTotal(
-        expenses: [MeetingExpense]
-    ) -> Double {
-        expenses.reduce(0) { sum, expense in
-            sum + expense.amount
-        }
+    static func total(for expenses: [MeetingExpense]) -> Double {
+        expenses.reduce(0) { $0 + $1.amount }
     }
-
-    // Obliczanie kosztu na jedna osobe
-    static func calculatePerPerson(
-        expenses: [MeetingExpense],
-        participantsCount: Int
-    ) -> Double {
-        guard participantsCount > 0 else { return 0 }
-
-        return calculateTotal(expenses: expenses)
-            / Double(participantsCount)
+    static func share(for meeting: Meeting) -> Double {
+        total(for: meeting.expenses) / Double(meeting.participantNames.count + 1)
     }
 }

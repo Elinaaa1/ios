@@ -1,63 +1,46 @@
-// MARK: - DODAWANIE WYDATKU
-// Formularz zapisu kosztow do wybranego spotkania.
-
 import SwiftUI
 
+// MARK: - WIDOK DODAWANIA WYDATKU
 struct ExpenseEditorView: View {
     @EnvironmentObject private var store: EventStore
     @Environment(\.dismiss) private var dismiss
-
+    @StateObject private var model = ExpenseEditorViewModel()
     let meetingID: UUID
-    @State private var title = ""
-    @State private var amountText = ""
-    @State private var paidBy = "Me"
-
-    private var meeting: Meeting? {
-        store.meetings.first { $0.id == meetingID }
-    }
-
-    private var validAmount: Double? {
-        guard let value = Double(amountText.replacingOccurrences(of: ",", with: ".")),
-              value.isFinite, value > 0 else { return nil }
-        return value
-    }
+    private var meeting: Meeting? { store.meetings.first { $0.id == meetingID } }
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField("What was purchased?", text: $title)
-                TextField("Amount (PLN)", text: $amountText)
-                    .keyboardType(.decimalPad)
-                Picker("Paid by", selection: $paidBy) {
-                    Text("Me").tag("Me")
-                    ForEach(meeting?.participantNames ?? [], id: \.self) { name in
-                        Text(name).tag(name)
+                Section("Expense details") {
+                    TextField("What was purchased?", text: $model.title)
+                    TextField("Amount (PLN)", text: $model.amountText).keyboardType(.decimalPad)
+                    Picker("Paid by", selection: $model.paidBy) {
+                        Text("Me").tag("Me")
+                        ForEach(meeting?.participantNames.filter { $0 != "Me" } ?? [], id: \.self) { name in
+                            Text(name).tag(name)
+                        }
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle("New expense")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(AppTheme.pink)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveExpense() }
-                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || validAmount == nil)
+                    Button("Save") { saveExpense() }.disabled(!model.canSave)
                 }
             }
         }
     }
 
-    // MARK: - AKCJA UZYTKOWNIKA
+    // MARK: - ZAPIS DO EVENTSTORE; WALIDACJA JEST W VIEWMODEL
     private func saveExpense() {
-        guard var updated = meeting, let amount = validAmount else { return }
-        updated.expenses.append(MeetingExpense(
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            amount: amount,
-            paidBy: paidBy
-        ))
-        store.update(updated)
+        guard var meeting, let expense = model.makeExpense() else { return }
+        meeting.expenses.append(expense)
+        store.update(meeting)
         dismiss()
     }
 }
