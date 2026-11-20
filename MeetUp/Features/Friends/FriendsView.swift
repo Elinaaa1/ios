@@ -1,39 +1,48 @@
-// MARK: - LISTA ZNAJOMYCH
-// Dodawanie i usuwanie nazw znajomych w pamieci lokalnej.
-
 import SwiftUI
 
+// MARK: - ZNAJOMI; OPERACJE ZAPISU W EVENTSTORE
 struct FriendsView: View {
     @EnvironmentObject private var store: EventStore
     @State private var name = ""
-
     var body: some View {
         NavigationStack {
-            List {
-                Section("Add a friend") {
+            ScrollView {
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Better together 💖").font(.largeTitle.bold())
+                        Text("Add people to your next plan.").font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(20)
+                    .background(AppTheme.softGradient, in: RoundedRectangle(cornerRadius: 24))
                     HStack {
-                        TextField("Friend's name", text: $name)
+                        TextField("Friend's name", text: $name).textFieldStyle(.roundedBorder)
                         Button("Add") {
                             store.addFriend(name)
                             name = ""
                         }
                         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
-                Section("Friends") {
-                    if store.friends.isEmpty {
-                        Text("No friends added yet.").foregroundStyle(.secondary)
-                    }
+                        .buttonStyle(.borderedProminent)
+                    }.slayCard()
                     ForEach(store.friends, id: \.self) { friend in
-                        Label(friend, systemImage: "person.circle.fill")
+                        HStack(spacing: 14) {
+                            Image(systemName: "person.fill")
+                                .frame(width: 42, height: 42).foregroundStyle(.white)
+                                .background(AppTheme.mainGradient, in: Circle())
+                            Text(friend).font(.headline).foregroundStyle(AppTheme.textPrimary)
+                            Spacer()
+                            Button(role: .destructive) { store.removeFriend(friend) } label: {
+                                Image(systemName: "trash").foregroundStyle(AppTheme.pink)
+                            }.accessibilityLabel("Remove \(friend)")
+                        }.slayCard()
                     }
-                    .onDelete { offsets in
-                        let names = store.friends
-                        for index in offsets { store.removeFriend(names[index]) }
+                    if store.friends.isEmpty {
+                        Text("No friends yet. Add someone above!")
+                            .foregroundStyle(AppTheme.textSecondary).slayCard()
                     }
-                }
+                }.padding()
             }
-            .navigationTitle("Friends")
+            .background(AppTheme.background.ignoresSafeArea())
+            .navigationTitle("Friends").tint(AppTheme.pink)
         }
     }
 }
