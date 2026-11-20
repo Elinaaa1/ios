@@ -18,6 +18,19 @@ struct EventDetailView: View {
         Group {
             if let meeting {
                 List {
+                    // MARK: - ROZOWO-TURKUSOWY NAGLOWEK WYDARZENIA
+                    Section {
+                        HStack {
+                            Image(systemName: meeting.category.symbol).font(.largeTitle)
+                            VStack(alignment: .leading) {
+                                Text(meeting.title).font(.title2.bold())
+                                Text(meeting.status.rawValue).font(.subheadline)
+                            }
+                            Spacer()
+                        }
+                        .padding(12).foregroundStyle(AppTheme.textPrimary)
+                        .background(AppTheme.softGradient, in: RoundedRectangle(cornerRadius: 18))
+                    }
                     // MARK: - DANE PODSTAWOWE WYDARZENIA
                     Section("Details") {
                         Label(meeting.category.rawValue, systemImage: meeting.category.symbol)
@@ -44,9 +57,7 @@ struct EventDetailView: View {
                             }
                         }
                         .onDelete { offsets in
-                            var updated = meeting
-                            updated.tasks.remove(atOffsets: offsets)
-                            store.update(updated)
+                            store.update(TaskService.deleting(at: offsets, from: meeting))
                         }
                         HStack {
                             TextField("New task", text: $newTask)
@@ -97,11 +108,11 @@ struct EventDetailView: View {
                             updated.expenses.remove(atOffsets: offsets)
                             store.update(updated)
                         }
-                        LabeledContent("Total", value: ExpenseCalculator.calculateTotal(expenses: meeting.expenses)
-                                       .formatted(.currency(code: "PLN")))
-                        let peopleCount = meeting.participantNames.count + 1
-                        LabeledContent("Per person (including you)", value: ExpenseCalculator.calculatePerPerson(expenses: meeting.expenses, 
-                        participantsCount: meeting.participantNames.count + 1).formatted(.currency(code: "PLN")))
+                        LabeledContent("Total", value: ExpenseCalculator.total(for: meeting)
+                            .formatted(.currency(code: "PLN")))
+                        LabeledContent("Per person (including you)", value:
+                            ExpenseCalculator.share(for: meeting)
+                            .formatted(.currency(code: "PLN")))
                         Button("Add expense", systemImage: "plus.circle") {
                             showingExpenseForm = true
                         }
@@ -113,7 +124,11 @@ struct EventDetailView: View {
                         }
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(AppTheme.background.ignoresSafeArea())
+                .listRowBackground(Color.white)
                 .navigationTitle(meeting.title)
+                .tint(AppTheme.pink)
                 .toolbar { Button("Edit") { showingEdit = true } }
                 .sheet(isPresented: $showingEdit) { EventEditorView(existing: meeting) }
                 .sheet(isPresented: $showingPollEditor) {
@@ -128,20 +143,15 @@ struct EventDetailView: View {
         }
     }
 
-    // MARK: - DODAWANIE ZADANIA DO LISTY
+    // MARK: - PRZEKAZANIE OPERACJI NA ZADANIACH DO TASKSERVICE
     private func addTask() {
-        guard var updated = meeting else { return }
-        let clean = newTask.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { return }
-        updated.tasks.append(MeetingTask(title: clean))
+        guard let meeting, let updated = TaskService.adding(newTask, to: meeting) else { return }
         store.update(updated)
         newTask = ""
     }
 
-    // MARK: - ZMIANA STATUSU ZADANIA
     private func toggleTask(_ id: UUID) {
-        guard var updated = meeting, let index = updated.tasks.firstIndex(where: { $0.id == id }) else { return }
-        updated.tasks[index].isDone.toggle()
-        store.update(updated)
+        guard let meeting else { return }
+        store.update(TaskService.toggling(id, in: meeting))
     }
 }
