@@ -12,6 +12,14 @@ struct CalendarView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("YOUR SOCIAL CALENDAR ✨").font(.caption.bold())
+                        Text("Make every day count").font(.title2.bold())
+                    }
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(22)
+                    .background(AppTheme.softGradient, in: RoundedRectangle(cornerRadius: 24))
                     monthHeader
                     calendarGrid
                     selectedDayEvents
@@ -20,6 +28,7 @@ struct CalendarView: View {
             }
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("Calendar")
+            .tint(AppTheme.pink)
             .navigationDestination(for: UUID.self) { id in
                 EventDetailView(meetingID: id)
             }
@@ -89,7 +98,7 @@ struct CalendarView: View {
             }
         }
         .padding(14)
-        .background(.white, in: RoundedRectangle(cornerRadius: 22))
+        .background(AppTheme.card, in: RoundedRectangle(cornerRadius: 22))
     }
 
     // MARK: - SPOTKANIA W WYBRANYM DNIU
