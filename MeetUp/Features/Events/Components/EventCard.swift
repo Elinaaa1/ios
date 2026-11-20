@@ -1,31 +1,22 @@
-// MARK: - KARTA WYDARZENIA
-// Element wielokrotnego uzytku pokazujacy spotkanie na liscie.
-
 import SwiftUI
 
+// MARK: - WSPOLNA KARTA WYDARZENIA W HOME / EVENTS / CALENDAR
 struct EventCard: View {
     let meeting: Meeting
-
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: meeting.category.symbol)
-                .font(.title2)
-                .foregroundStyle(AppTheme.pink)
-                .frame(width: 50, height: 50)
-                .background(AppTheme.pink.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-            VStack(alignment: .leading, spacing: 5) {
-                Text(meeting.title).font(.headline)
-                Text(meeting.date, format: .dateTime.day().month().year().hour().minute())
-                    .font(.subheadline).foregroundStyle(.secondary)
-                if !meeting.location.isEmpty {
-                    Label(meeting.location, systemImage: "mappin")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+                .font(.title2.bold()).foregroundStyle(.white)
+                .frame(width: 54, height: 54)
+                .background(AppTheme.mainGradient, in: RoundedRectangle(cornerRadius: 16))
+            VStack(alignment: .leading, spacing: 7) {
+                Text(meeting.title).font(.headline).foregroundStyle(AppTheme.textPrimary)
+                Label(meeting.date.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
+                if !meeting.location.isEmpty { Label(meeting.location, systemImage: "mappin") }
             }
+            .font(.subheadline).foregroundStyle(AppTheme.textSecondary)
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+            Image(systemName: "chevron.right").foregroundStyle(AppTheme.pink)
+        }.slayCard()
     }
 }
