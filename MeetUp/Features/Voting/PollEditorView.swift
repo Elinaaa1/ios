@@ -1,129 +1,83 @@
-// MARK: - TWORZENIE ANKIETY
-// Formularz pytania, typu i odpowiedzi oraz walidacja.
-
 import SwiftUI
 
-
-// MODEL POMOCNICZY OPCJI ODPOWIEDZI
-struct PollDraftOption: Identifiable {
-    let id = UUID()
-    var title: String = ""
-}
-
-// TWORZENIE NOWEJ ANKIETY
+// MARK: - WIDOK TWORZENIA ANKIETY
+// Tylko wyswietlanie pol i przekazanie akcji do PollEditorViewModel.
 struct PollEditorView: View {
     @EnvironmentObject private var store: EventStore
     @Environment(\.dismiss) private var dismiss
-
+    @StateObject private var model = PollEditorViewModel()
     let meetingID: UUID
-    @State private var question = ""
-    @State private var kind: PollKind = .date
-    
-    @State private var draftOptions: [PollDraftOption] = [
-        PollDraftOption(),
-        PollDraftOption()
-    ]
-
-    // MARK: - ODCZYT I OCZYSZCZENIE PODANYCH ODPOWIEDZI
-    private var enteredOptions: [String] {
-        draftOptions
-            .map { $0.title.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
-
-    // MARK: - WALIDACJA: PYTANIE, MINIMUM 2 ROZNE ODPOWIEDZI
-    private var canSave: Bool {
-        let validQuestion = !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        
-        let minimumOptions = enteredOptions.count >= 2
-        
-        let allOptionsFilled = enteredOptions.count == draftOptions.count
-        
-        let uniqueOptions = Set(enteredOptions.map { $0.lowercased() }).count
-        
-        return validQuestion && minimumOptions && allOptionsFilled && uniqueOptions
-        
-    }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Poll") {
-                    TextField("Question, e.g. Where should we go?", text: $question)
-                    Picker("Type", selection: $kind) {
-                        ForEach(PollKind.allCases) { pollKind in
-                            Text(pollKind.rawValue).tag(pollKind)
-                        }
-                    }
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("MAKE THE PLAN", systemImage: "sparkles")
+                            .font(.caption.bold()).foregroundStyle(AppTheme.pink)
+                        Text("Ask the group!").font(.largeTitle.bold()).foregroundStyle(AppTheme.textPrimary)
+                        Text("Create as many choices as you need.").foregroundStyle(AppTheme.textSecondary)
+                    }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppTheme.softGradient, in: RoundedRectangle(cornerRadius: 24))
 
-                Section{
-                    ForEach($draftOptions) { $option in
-                        
-                        HStack(spacing: 12) {
-                            TextField("Enter an option", text: $option.title)
-                            
-                            Button(role: .destructive) {
-                                removeOption(id: option.id)
-                            } label: {
-                                Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Your question").font(.headline)
+                        TextField("Where should we go?", text: $model.question)
+                            .textFieldStyle(.roundedBorder)
+                        Picker("Poll type", selection: $model.kind) {
+                            ForEach(PollKind.allCases) { kind in Text(kind.rawValue).tag(kind) }
+                        }
+                    }.slayCard()
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Answer options").font(.headline)
+                            Spacer()
+                            Text("\(model.options.count) choices").font(.caption.bold()).foregroundStyle(AppTheme.turquoise)
+                        }
+                        ForEach($model.options) { $option in
+                            HStack {
+                                TextField("Enter an option", text: $option.title)
+                                    .textFieldStyle(.roundedBorder)
+                                Button {
+                                    model.removeOption(id: option.id)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill").foregroundStyle(AppTheme.pink)
+                                }
+                                .disabled(model.options.count <= 2)
+                                .accessibilityLabel("Remove option")
                             }
-                            .buttonStyle(.borderless)
-                            .disabled(draftOptions.count <= 2)
                         }
-                    }
-                     
-                    Button {addOption()} label: {
-                        Label("Add option", systemImage: "plus.circle.fill").foregroundStyle(AppTheme.pink)
-                    }
-                } header: {
-                    Text("Answer options")
-                } footer: {
-                    Text("Add at least two different answers. " + "You can add or remove more options.")
-                }
-
-                Section {
-                    Text("Votes are stored locally. Friends are selected by name on this device.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                        Button { model.addOption() } label: {
+                            Label("Add another option", systemImage: "plus.circle.fill")
+                                .font(.headline).frame(maxWidth: .infinity).padding(12)
+                                .background(AppTheme.softGradient, in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        .foregroundStyle(AppTheme.textPrimary)
+                        Text("At least two unique, non-empty answers are required.")
+                            .font(.caption).foregroundStyle(AppTheme.textSecondary)
+                    }.slayCard()
+                }.padding()
             }
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("New poll")
             .navigationBarTitleDisplayMode(.inline)
             .tint(AppTheme.pink)
-            
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { createPoll() }
-                        .disabled(!canSave)
+                    Button("Create") { savePoll() }.disabled(!model.canSave)
                 }
             }
         }
     }
-    
-    private func addOption() {
-        draftOptions.append(PollDraftOption())
-    }
-    
-    private func removeOption(id: UUID) {
-        guard draftOptions.count > 2 else {return}
-        
-        draftOptions.removeAll { $0.id == id }
-    }
 
-    // MARK: - UTWORZENIE ANKIETY I PRZYPISANIE JEJ DO SPOTKANIA
-    private func createPoll() {
-        guard canSave,
+    // MARK: - INTEGRACJA WIDOKU Z EVENTSTORE
+    // Walidacja i konstrukcja ankiety sa juz w ViewModel.
+    private func savePoll() {
+        guard let poll = model.makePoll(),
               var meeting = store.meetings.first(where: { $0.id == meetingID }) else { return }
-        
-        let pollOptions = enteredOptions.map(PollOption(title: $0))
-        
-        let newPoll = MeetingPoll(question: question.trimmingCharacters(in: .whitespacesAndNewlines), kind: kind, options: pollOptions)
-        
-        meeting.polls.append(newPoll)
+        meeting.polls.append(poll)
         store.update(meeting)
         dismiss()
     }

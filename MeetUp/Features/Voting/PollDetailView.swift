@@ -1,8 +1,7 @@
-// MARK: - GLOSOWANIE I WYNIKI
-// Wyswietla opcje, oddaje glos i pokazuje procenty.
-
 import SwiftUI
 
+// MARK: - WIDOK GLOSOWANIA
+// Obliczenia procentow i zmiana glosu zostaly przeniesione do VotingService.
 struct PollDetailView: View {
     @EnvironmentObject private var store: EventStore
     @Environment(\.dismiss) private var dismiss
@@ -10,138 +9,80 @@ struct PollDetailView: View {
     let pollID: UUID
     @State private var selectedVoter = "Me"
 
-    private var meeting: Meeting? {
-        store.meetings.first { $0.id == meetingID }
-    }
-
-    private var poll: MeetingPoll? {
-        meeting?.polls.first { $0.id == pollID }
-    }
-
-    private var voters: [String] {
-        ["Me"] + (meeting?.participantNames.filter { $0 != "Me" } ?? [])
-    }
+    private var meeting: Meeting? { store.meetings.first { $0.id == meetingID } }
+    private var poll: MeetingPoll? { meeting?.polls.first { $0.id == pollID } }
+    private var voters: [String] { ["Me"] + (meeting?.participantNames.filter { $0 != "Me" } ?? []) }
 
     var body: some View {
         Group {
             if let poll {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(poll.kind.rawValue.uppercased())
-                                .font(.caption.bold())
-                                .foregroundStyle(AppTheme.pink)
-                            Text(poll.question)
-                                .font(.title2.bold())
-                            Text("\(poll.votes.count) vote(s) • One choice per person")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
-                        .background(AppTheme.mainGradient.opacity(0.15), in: RoundedRectangle(cornerRadius: 22))
-
+                    VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Voting as")
-                                .font(.headline)
+                            Text(poll.kind.rawValue.uppercased()).font(.caption.bold())
+                            Text(poll.question).font(.largeTitle.bold())
+                            Text("\(poll.votes.count) votes • One choice per person")
+                                .font(.subheadline)
+                        }
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(22)
+                        .background(AppTheme.softGradient, in: RoundedRectangle(cornerRadius: 24))
+
+                        HStack {
+                            Text("Voting as").font(.headline)
+                            Spacer()
                             Picker("Person", selection: $selectedVoter) {
-                                ForEach(voters, id: \.self) { name in
-                                    Text(name).tag(name)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            Text("Demo mode: select a participant to submit their vote on this device.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        VStack(spacing: 12) {
-                            ForEach(poll.options) { option in
-                                optionCard(option, poll: poll)
-                            }
-                        }
-
+                                ForEach(voters, id: \.self) { name in Text(name).tag(name) }
+                            }.pickerStyle(.menu)
+                        }.slayCard()
+                        ForEach(poll.options) { option in optionCard(option, in: poll) }
                         Label(poll.resultText, systemImage: "chart.bar.fill")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.white, in: RoundedRectangle(cornerRadius: 16))
-
+                            .font(.headline).foregroundStyle(AppTheme.textPrimary).slayCard()
+                        Text("Demo mode: participants vote on this device.")
+                            .font(.caption).foregroundStyle(AppTheme.textSecondary)
                         Button("Delete poll", role: .destructive) {
-                            deletePoll()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
-                    }
-                    .padding()
+                            guard let meeting else { return }
+                            store.update(VotingService.deletingPoll(pollID, from: meeting))
+                            dismiss()
+                        }.frame(maxWidth: .infinity).padding(.top)
+                    }.padding()
                 }
                 .background(AppTheme.background.ignoresSafeArea())
                 .navigationTitle("Poll results")
                 .navigationBarTitleDisplayMode(.inline)
             } else {
-                ContentUnavailableView("Poll unavailable", systemImage: "exclamationmark.bubble")
+                ContentUnavailableView("Poll unavailable", systemImage: "chart.bar.xaxis")
             }
-        }
-        .tint(AppTheme.pink)
+        }.tint(AppTheme.pink)
     }
 
-    // MARK: - WIDOK JEDNEJ ODPOWIEDZI I PASKA PROCENTOWEGO
-    private func optionCard(_ option: PollOption, poll: MeetingPoll) -> some View {
+    // MARK: - KARTA WYNIKU (TYLKO PREZENTACJA)
+    private func optionCard(_ option: PollOption, in poll: MeetingPoll) -> some View {
         let count = poll.countVotes(forOptionID: option.id)
-        // Zabezpieczenie przed dzieleniem przez zero (brak glosow).
-        let fraction = poll.votes.isEmpty ? 0.0 : Double(count) / Double(poll.votes.count)
-        let isSelected = poll.votes.contains { $0.voterName == selectedVoter && $0.optionID == option.id }
-
+        let percent = VotingService.percent(for: option, in: poll)
+        let selected = VotingService.isSelected(option, by: selectedVoter, in: poll)
         return Button {
-            submitVote(for: option.id)
+            guard let meeting else { return }
+            store.update(VotingService.castingVote(option.id, by: selectedVoter, in: meeting, pollID: pollID))
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(option.title)
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.textPrimary)
+                    Text(option.title).font(.headline)
                     Spacer()
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(AppTheme.pink)
-                    }
-                    Text("\(count) • \(Int((fraction * 100).rounded()))%")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(AppTheme.pink) }
+                    Text("\(count) • \(percent)%").foregroundStyle(AppTheme.textSecondary)
                 }
-                GeometryReader { geometry in
+                GeometryReader { g in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(AppTheme.lavender.opacity(0.16))
-                        Capsule().fill(AppTheme.mainGradient)
-                            .frame(width: geometry.size.width * fraction)
+                        Capsule().fill(AppTheme.lavender.opacity(0.20))
+                        Capsule().fill(AppTheme.mainGradient).frame(width: g.size.width * CGFloat(percent) / 100)
                     }
-                }
-                .frame(height: 9)
+                }.frame(height: 10)
             }
-            .padding(16)
-            .background(.white, in: RoundedRectangle(cornerRadius: 18))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(isSelected ? AppTheme.pink : .clear, lineWidth: 2)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - ODDANIE GLOSU I ZAPIS ZMIAN DO EVENTSTORE
-    private func submitVote(for optionID: UUID) {
-        guard var updated = meeting,
-              let index = updated.polls.firstIndex(where: { $0.id == pollID }) else { return }
-        updated.polls[index].castVote(voterName: selectedVoter, optionID: optionID)
-        store.update(updated)
-    }
-
-    // MARK: - USUNIECIE ANKIETY
-    private func deletePoll() {
-        guard var updated = meeting else { return }
-        updated.polls.removeAll { $0.id == pollID }
-        store.update(updated)
-        dismiss()
+            .foregroundStyle(AppTheme.textPrimary)
+            .slayCard()
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(selected ? AppTheme.pink : .clear, lineWidth: 2))
+        }.buttonStyle(.plain)
     }
 }
